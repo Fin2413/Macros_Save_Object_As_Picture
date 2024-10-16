@@ -1,82 +1,107 @@
-Attribute VB_Name = "Module1"
 Sub Save_Object_As_Picture()
-    ' Объявление переменных
+    ' Declaring variables
     Dim li As Long, oObj As Shape, wsSh As Worksheet, wsTmpSh As Worksheet
     Dim sImagesPath As String, sName As String, productName As String
     Dim topLeftCell As Range
- 
-    ' Установка пути для сохранения изображений
-    sImagesPath = ActiveWorkbook.Path & "\images\" ' Папка для сохранения изображений в текущем каталоге книги
+    Dim logFilePath As String
     
-    ' Создание папки, если она не существует
+    ' Setting the path to save images
+    sImagesPath = ActiveWorkbook.Path & "\images\" ' The folder for saving images in the current directory of the book
+    
+    ' Setting the log file path in the images folder
+    logFilePath = sImagesPath & "log.txt"
+    
+    ' Creating a folder if it does not exist
     If Dir(sImagesPath, 16) = "" Then
-        MkDir sImagesPath ' Создать папку для изображений, если её нет
+        MkDir sImagesPath ' Create a folder for images if there is none
+        LogMessage "Created folder: " & sImagesPath, logFilePath
     End If
     
-    ' Отключение обновления экрана и предупреждений, чтобы ускорить выполнение
-    On Error Resume Next ' Игнорировать ошибки
-    Application.ScreenUpdating = False ' Отключить обновление экрана
-    Application.DisplayAlerts = False ' Отключить предупреждения
+    ' Disabling screen updates and warnings to speed up execution
+    On Error Resume Next ' Ignore errors
+    Application.ScreenUpdating = False ' Disable screen refresh
+    Application.DisplayAlerts = False ' Disable warnings
 
-    ' Установка текущего листа и создание временного листа
-    Set wsSh = ActiveSheet ' Установка активного листа
-    Set wsTmpSh = ActiveWorkbook.Sheets.Add ' Добавление временного листа для работы с графиком
+    ' Installing the current sheet and creating a temporary sheet
+    Set wsSh = ActiveSheet ' Installing the active sheet
+    Set wsTmpSh = ActiveWorkbook.Sheets.Add ' Adding a time sheet to work with the schedule
 
-    ' Перебор всех объектов на активном листе
+    ' Iterating through all the objects on the active sheet
     For Each oObj In wsSh.Shapes
-        ' Проверка, является ли объект изображением
-        If oObj.Type = 13 Then ' Тип 13 — это изображения
-            li = li + 1 ' Счетчик для имен изображений
+        ' Checking whether an object is an image
+        If oObj.Type = 13 Then ' Type 13 are images
+            li = li + 1 ' Counter for image names
             
-            ' Получаем ячейку, где находится верхний левый угол объекта
-            Set topLeftCell = oObj.topLeftCell
+            ' We get the cell where the upper left corner of the object is located
+            Set topLeftCell = oObj.TopLeftCell
             
-            ' Получаем имя продукта из первого столбца (колонка A) той же строки, что и изображение
-            productName = wsSh.Cells(topLeftCell.Row, 1).Value ' Наименование из столбца A
+            ' We get the product name from the first column (column A) of the same row as the image
+            productName = wsSh.Cells(topLeftCell.Row, 1).Value ' Name from column A
             
-            ' Удаляем недопустимые символы из имени файла
-            productName = Replace(productName, "/", "_") ' Заменяем слэши
-            productName = Replace(productName, "\", "_") ' Заменяем обратные слэши
-            productName = Replace(productName, ":", "_") ' Заменяем двоеточия
-            productName = Replace(productName, "*", "_") ' Заменяем звездочки
-            productName = Replace(productName, "?", "_") ' Заменяем вопросительные знаки
-            productName = Replace(productName, """", "_") ' Заменяем кавычки
-            productName = Replace(productName, "<", "_") ' Заменяем меньшие знаки
-            productName = Replace(productName, ">", "_") ' Заменяем большие знаки
-            productName = Replace(productName, "|", "_") ' Заменяем вертикальные линии
+            ' Removing invalid characters from the file name
+            productName = CleanFileName(productName)
             
-            ' Если имя продукта пустое, используем стандартное имя
+            ' If the product name is empty, use the standard name
             If productName = "" Then
                 productName = "img" & li
             End If
             
-            ' Копируем изображение
+            ' Copying the image
             oObj.Copy
 
-            ' Использование временного графика для экспорта изображения
+            ' Using a time graph to export an image
             With wsTmpSh.ChartObjects.Add(0, 0, oObj.Width, oObj.Height).Chart
-                .ChartArea.Border.LineStyle = 0 ' Убираем границы графика
-                .Parent.Select ' Выбираем график
-                .Paste ' Вставляем изображение в график
-                .Export Filename:=sImagesPath & productName & ".jpg", FilterName:="JPG" ' Экспортируем изображение как файл JPG
-                .Parent.Delete ' Удаляем временный график после сохранения изображения
+                .ChartArea.Border.LineStyle = 0 ' Removing the boundaries of the graph
+                .Parent.Select ' Choosing a schedule
+                .Paste ' Inserting the image into the graph
+                .Export Filename:=sImagesPath & productName & ".jpg", FilterName:="JPG" ' Exporting the image as a JPG file
+                LogMessage "Saved image: " & productName & ".jpg", logFilePath ' Log saving image
+                .Parent.Delete ' Deleting the time schedule after saving the image
             End With
             
-            ' Записываем имя файла в ячейку, где находилось изображение
-            oObj.topLeftCell.Value = productName ' Записываем имя файла в ячейку
+            ' We write the file name to the cell where the image was located
+            oObj.TopLeftCell.Value = productName ' We write the file name in the cell
         End If
     Next oObj
 
-    ' Освобождение памяти
+    ' Freeing up memory
     Set oObj = Nothing
     Set wsSh = Nothing
-    wsTmpSh.Delete ' Удаление временного листа
+    wsTmpSh.Delete ' Deleting a temporary sheet
 
-    ' Включаем обратно обновление экрана и предупреждения
+    ' Turning back the screen update and warnings
     Application.DisplayAlerts = True
     Application.ScreenUpdating = True
 
-    ' Сообщение о завершении процесса
-    MsgBox "Объекты сохранены в папке: " & sImagesPath, vbInformation, "Успех"
+    ' Process completion message
+    MsgBox "The objects are saved in the folder: " & sImagesPath, vbInformation, "Success"
+    LogMessage "Process completed successfully.", logFilePath ' Log completion
 End Sub
 
+Function CleanFileName(fileName As String) As String
+    ' Remove invalid characters from file name
+    fileName = Replace(fileName, "/", "_")
+    fileName = Replace(fileName, "\", "_")
+    fileName = Replace(fileName, ":", "_")
+    fileName = Replace(fileName, "*", "_")
+    fileName = Replace(fileName, "?", "_")
+    fileName = Replace(fileName, """", "_")
+    fileName = Replace(fileName, "<", "_")
+    fileName = Replace(fileName, ">", "_")
+    fileName = Replace(fileName, "|", "_")
+    
+    ' Remove line breaks
+    fileName = Replace(fileName, vbCr, "") ' Removing carriage return
+    fileName = Replace(fileName, vbLf, "") ' Removing line feed
+    fileName = Replace(fileName, vbCrLf, "") ' Removing carriage return + line feed
+    
+    CleanFileName = fileName
+End Function
+
+Sub LogMessage(message As String, logFilePath As String)
+    Dim logFile As Integer
+    logFile = FreeFile
+    Open logFilePath For Append As #logFile
+    Print #logFile, Now & ": " & message
+    Close #logFile
+End Sub
